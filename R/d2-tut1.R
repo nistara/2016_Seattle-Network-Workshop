@@ -1,7 +1,10 @@
 ## ----setup, include=FALSE------------------------------------------------
 library(EpiModel)
 library(knitr)
-knitr::opts_chunk$set(cache=TRUE, comment=NA, fig.width=9, fig.height=5.4, cache.path = 'DocumentName_cache/', fig.path='DocumentName_figure/')
+knitr::opts_chunk$set(cache=TRUE, comment=NA, fig.width=9,
+                      fig.height=5.4,
+                      cache.path = 'DocumentName_cache/',
+                      fig.path='DocumentName_figure/')
 op <- par()
 par(mfrow=c(1,1),mar=c(3,3,1,1), mgp=c(2,1,0))
 np <- par()
@@ -72,12 +75,20 @@ plot(sim2, type='dissolution')
 ## ------------------------------------------------------------------------
 n <- 500
 net3 <- network.initialize(n, directed=FALSE)  
-net3 %v% 'race' <- c(rep("B",n/2), rep("W",n/2))
+net3 %v% 'race' <- c(rep("B",n/2), rep("W",n/2)) #%v% means assign vertex
+## attribute called race to net3 graph
 net3
+table(net3 %v% 'race')
+
 
 ## ------------------------------------------------------------------------
 form.formula.3 <- ~edges+nodematch('race')+degree(0)+
-    concurrent
+    concurrent   ##(no o fnodes with degree 2 or more)
+## don' specify degree(1) coz then they'll add up to no of vertices, which is
+## a fixed attribute. So adding this will cause colinearity
+
+## NOTE: This following part is very imp, and you need to think through the
+## target stats you're ggoing to feed in
 target.stats.3 <- c(0.9*n/2, (0.9*n/2)*(5/6), 0.36*n, 0.18*n)
 
 ## ------------------------------------------------------------------------
@@ -140,6 +151,8 @@ fit5 <- netest(net3,
              ),
              edapprox=FALSE
            )
+## edapprox - edge duration approximation
+## Now you're running a STRGEM for the first time actually!
 
 ## ---- warning=FALSE, message=FALSE---------------------------------------
 sim5 <- netdx(fit5, nsteps=1000, nsims=10, keep.tedgelist=TRUE)
