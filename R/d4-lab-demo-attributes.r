@@ -3,7 +3,7 @@
 
 ##
 ## Network Modeling for Epidemics 2016
-## Day 3 | Lab
+## Day 4 | Lab
 ##
 
 
@@ -13,18 +13,26 @@ library(EpiModel)
 
 # 1. Model Estimation -----------------------------------------------------
 
+## Flip the first mode to females (coz birth rate is calculated based on first mode,
+## and ingeneral, it's cal based on females
 ## Initialize the network
-num.m1 <- round(361/5) # Males
-num.m2 <- round(372/5) # Females
+num.m1 <- 372 # Females 
+num.m2 <- 361 # Males
+totpop = num.m1 + num.m2
 
 nw <- network.initialize(n = num.m1 + num.m2, bipartite = num.m1,
                          directed = FALSE)
+## race_value = sample(totpop, num.m1)
+## race_num = ifelse(1:totpop %in% race_value, 0, 1)
+
+race_type = sample(0:1, totpop, replace = TRUE)
+nw <- set.vertex.attribute(nw, attrname = "race", value = race_type)
 nw
 
 ## Fractional degree distributions by mode
 ## Mode1 = Male; Mode2 = Female
-deg.dist.m1 <- c(0.173, 0.578, 0.128, 0.121)
-deg.dist.m2 <- c(0.155, 0.631, 0.111, 0.103)
+deg.dist.m1 <- c(0.155, 0.631, 0.111, 0.103)
+deg.dist.m2 <- c(0.173, 0.578, 0.128, 0.121)
 
 ## Check for balancing of edges across modes
 check_bip_degdist(num.m1, num.m2,
@@ -36,12 +44,14 @@ check_bip_degdist(num.m1, num.m2,
 ## -----------------------------------------------------------------------------
 ## Formation formula
 
-formation <- ~edges + b1degree(0) + b2degree(0)
-target.stats <- c(72, 19.68,  12.4)
+formation <- ~edges + nodefactor("race") + nodematch("race")
+target.stats <- c(72, 183.25,  91.625)
 
 
 ## Dissolution coefficient calculations
-coef.diss <- dissolution_coefs(dissolution = ~offset(edges), duration = 38)
+coef.diss <- dissolution_coefs(dissolution = ~offset(edges),
+                               duration = 38,
+                               d.rate = 0.01)
 coef.diss
 
 ## Estimate the model
