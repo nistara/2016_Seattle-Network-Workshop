@@ -43,9 +43,13 @@ check_bip_degdist(num.m1, num.m2,
 
 ## -----------------------------------------------------------------------------
 ## Formation formula
+## meandeg = edges/(tot_pop/2)
+md = 432 /(totpop/2)
+race1 = sum(race_type)
 
+## Random mixing with same degree-----------------------------------------------
 formation <- ~edges + nodefactor("race") + nodematch("race")
-target.stats <- c(72, 183.25,  91.625)
+target.stats <- c(432, md*race1, 432/2)
 
 
 ## Dissolution coefficient calculations
@@ -56,29 +60,105 @@ coef.diss
 
 ## Estimate the model
 est <- netest(nw, formation, target.stats, coef.diss)
+summary(est)
 
 ## Diagnose the model fix
-dx <- netdx(est, nsims = 5, nsteps = 100,
-            nwstats.formula = ~edges + b1degree(0) + b2degree(0))
+dx <- netdx(est, nsims = 5, nsteps = 100, ncores = 4,
+            nwstats.formula = ~edges + nodefactor("race", base = 0) + nodematch("race"))
 dx
 
-## Compare the model fit statistics back to the "empirical" degree distribution
-check_bip_degdist(num.m1, num.m2,
-                  deg.dist.m1, deg.dist.m2)
 
 ## Plot the diagnostics for formation formula
+plot(dx)
 plot(dx, stats = c("edges", "b1deg0", "b2deg0"))
 
 ## Plot dissolution model diagnostics
 plot(dx, type = "duration")
 
+################################################################################
+## Random mixing with different degree------------------------------------------
+## increase mean degree 1.5 times
+md2 = md*1.5
+formation2 <- ~edges + nodefactor("race") + nodematch("race")
+target.stats2 <- c(432, md2*race1, 432/2)
 
+
+## Dissolution coefficient calculations
+coef.diss2 <- dissolution_coefs(dissolution = ~offset(edges),
+                               duration = 38,
+                               d.rate = 0.01)
+coef.diss2
+
+## Estimate the model
+est2 <- netest(nw, formation2, target.stats2, coef.diss2)
+summary(est2)
+## Diagnose the model fix
+dx2 <- netdx(est2, nsims = 5, nsteps = 100, ncores = 4,
+            nwstats.formula = ~edges + nodefactor("race", base = 0) + nodematch("race"))
+dx2
+
+
+## Plot the diagnostics for formation formula
+plot(dx2)
+################################################################################
+
+## Same degree with non-random mixing------------------------------------------
+# 80% of the partnerships occur within the same race
+formation3 <- ~edges + nodefactor("race") + nodematch("race")
+target.stats3 <- c(432, md*race1, 432*.80)
+
+
+## Dissolution coefficient calculations
+coef.diss3 <- dissolution_coefs(dissolution = ~offset(edges),
+                               duration = 38,
+                               d.rate = 0.01)
+coef.diss3
+
+## Estimate the model
+est3 <- netest(nw, formation3, target.stats3, coef.diss3)
+summary(est3)
+## Diagnose the model fix
+dx3 <- netdx(est3, nsims = 5, nsteps = 100, ncores = 4,
+            nwstats.formula = ~edges + nodefactor("race", base = 0) + nodematch("race"))
+dx3
+
+
+## Plot the diagnostics for formation formula
+plot(dx3)
+################################################################################
+## Different degree with non-random mixing------------------------------------------
+# 80% of the partnerships occur within the same race
+formation4 <- ~edges + nodefactor("race") + nodematch("race")
+target.stats4 <- c(432, md*1.5*race1, 432*.80)
+
+
+## Dissolution coefficient calculations
+coef.diss4 <- dissolution_coefs(dissolution = ~offset(edges),
+                               duration = 38,
+                               d.rate = 0.01)
+coef.diss4
+
+## Estimate the model
+est4 <- netest(nw, formation4, target.stats4, coef.diss4)
+summary(est4)
+## Diagnose the model fix
+dx4 <- netdx(est4, nsims = 5, nsteps = 100, ncores = 4,
+            nwstats.formula = ~edges + nodefactor("race", base = 0) + nodematch("race"))
+dx4
+
+
+## Plot the diagnostics for formation formula
+plot(dx4)
+################################################################################
 
 # 2. Epidemic Simulation --------------------------------------------------
 
 ## Model parameters by mode: .m2 are for mode 2 persons
 param <- param.net(inf.prob = 0.2, inf.prob.m2 = 0.2,
-                   rec.rate = 0.02, rec.rate.m2 = 0.02)
+                   rec.rate = 0.02, rec.rate.m2 = 0.02,
+                   b.rate = 0.005, b.rate.m2 = NA,
+                   ds.rate = 0.001, ds.rate.m2 = 0.001,
+                   di.rate = 0.001, di.rate.m2 = 0.001)
 
 ## Initial conditions
 init <- init.net(i.num = 10, i.num.m2 = 10,
@@ -87,30 +167,68 @@ init <- init.net(i.num = 10, i.num.m2 = 10,
 # have to specify the reco ppl incase there already are rec
 
 ## Control settings
-control <- control.net(type = "SIS", nsims = 5, nsteps = 25)
+control <- control.net(type = "SIS", nsims = 25, nsteps = 250, epi.by = "race")
 
 ## Simulate the model
 sim <- netsim(est, param, init, control)
+sim1 <- netsim(est2, param, init, control)
+sim2 <- netsim(est3, param, init, control)
+sim3 <- netsim(est4, param, init, control)
 
-
+## Note the discrepancy in the names of the sims and the ests. Am leaving as is
+## for now
 
 # 3. Model Analysis -------------------------------------------------------
 
 ## Plot the simulation
 plot(sim)
+plot(sim1)
+plot(sim2)
+plot(sim3)
 
-## Plot mode-specific data on prevalence and incidence
-par(mfrow = c(1, 2))
-plot(sim, y = c("i.num", "i.num.m2"),
-     qnts = 0.5, ylim = c(0, 0.4), leg = TRUE)
-plot(sim, y = c("si.flow", "si.flow.m2"),
-     qnts = 0.5, ylim = c(0, 3), leg = TRUE)
 
-## Static network plot for "most average" simulation
-par(mfrow = c(1,1), mar = c(0,0,0,0))
-plot(sim, type = "network", col.status = TRUE, at = 50,
-     sims = "mean", shp.bip = "square")
-# sims = mean - for getting mean values, not an outlier
+
+
+################################################################################
+## Plot the edges fit after epidemic simulation
+par(mfrow = c(2, 2))
+plot(sim, type = "formation", stats = "edges")
+plot(sim1, type = "formation", stats = "edges")
+plot(sim2, type = "formation", stats = "edges")
+plot(sim3, type = "formation", stats = "edges")
+dev.off()
+
+
+## Plot the overall prevalence from each model
+plot(sim, y = "i.num", qnts = 1, mean.col = "steelblue",
+     qnts.col = "steelblue", main = "Total Prevalence")
+plot(sim1, y = "i.num", qnts = 1, mean.col = "firebrick",
+     qnts.col = "firebrick", add = TRUE)
+plot(sim2, y = "i.num", qnts = 1, mean.col = "green",
+     qnts.col = "firebrick", add = TRUE)
+plot(sim3, y = "i.num", qnts = 1, mean.col = "purple",
+     qnts.col = "firebrick", add = TRUE)
+legend("topleft", c("Model 0", "Model 1", "Model 2", "Model 3"), lwd = 3,
+       col = c("steelblue", "firebrick", "green", "purple"), bty = "n")
+## add = TRUE - adds the second plot to the first one
+
+
+## Plot the race-specific prevalence from each model
+par(mfrow = c(2, 2))
+plot(sim, y = c("i.num.race0", "i.num.race1"),  leg = FALSE, qnts = 1,
+     ylim = c(0, 500), main = "M0:Random mixing with same mean degree")
+plot(sim1, y = c("i.num.race0", "i.num.race1"), leg = TRUE,  qnts = 1,
+     ylim = c(0, 500), main = "M1: Random mixing + higher mean degree")
+plot(sim2, y = c("i.num.race0", "i.num.race1"), leg = TRUE,  qnts = 1,
+     ylim = c(0, 500), main = "M2: Assortative mixing + same mean degree")
+plot(sim3, y = c("i.num.race0", "i.num.race1"), leg = TRUE,  qnts = 1,
+     ylim = c(0, 500), main = "M3: ssortative mixing + differential degree")
+
+
+
+
+
+################################################################################
 
 
 

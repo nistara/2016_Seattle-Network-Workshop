@@ -4,6 +4,8 @@
 ## Day 4 | Tutorial 3: Serosorting
 ##
 
+## changing behavior once you're infected....changing behavior
+
 library(EpiModel)
 
 
